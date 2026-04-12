@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contas a Pagar</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+   
+</head>
+<body onload="carregarProgressoSalvo()">
+    <div class="carregando div-pagina" id="telaCarregando">
+        <div class="loader-box">
+            <div class="spinner"></div>
+            <p id="textoCarregando">Carregando dados...</p>
+        </div>
+    </div>
+
+    <div class="principal div-pagina">
+        <button onclick="mostrarIconer('cadastro')" class="remover-linha">Pagina Cadastro</button>
+        <p></p>
+        <div id="filtrosPrincipal"></div>
+        <div id="dadosTratadosDiv"></div>
+        <div id="Cronograma"></div>
+
+    </div>
+    <div class="cadastro div-pagina" >
+        <button onclick="btnMostrarPaginaPrincipal()" class="remover-linha">Pagina Principal</button>
+        <button onclick="salvarDicionario()" class="remover-linha">Salvar</button>
+        <button id="logoutButton" class="remover-linha">Carregar</button>
+        <p></p>
+        <div id="filtrosCadastro"></div>
+        <button onclick="addLinhaCadastro()" class="remover-linha">Adicionar Linha</button>
+        <button onclick="BaixarDadosCadastrados()" class="remover-linha">Exportar Dados</button>
+        <button id="btnImportarExcel" class="remover-linha">Importar Dados</button>
+        <button id="btnOcultarOuMostrar"  onclick="ocultarOuMostrarMacados()" class="remover-linha">Ocultar os Pagos</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Empresa</th>
+                    <th>Destinatário</th>
+                    <th>Valor</th>
+                    <th>Data</th>
+                    <th>Paga</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-cadastro">
+                <!-- Linhas da tabela serão adicionadas aqui -->
+            </tbody>
+        </table>
+
+
+    </div>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</body>
+</html>
