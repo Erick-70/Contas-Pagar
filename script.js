@@ -169,7 +169,7 @@ function renderizarDados(agrupados) {
                 } else if (diffDias <= 0) {
                     tr.style.backgroundColor = "#f44336";
                     tr.style.color = "white";
-                } else if (diffDias <= 3) {
+                } else if (diffDias <= 1) {
                     tr.style.backgroundColor = "#ffeb3b";
                 }
 
@@ -533,7 +533,7 @@ function renderizarCronograma21Dias(dados) {
                     } else if (diffDias <= 0) {
                         td.style.backgroundColor = "#f44336";
                         td.style.color = "white";
-                    } else if (diffDias <= 3) {
+                    } else if (diffDias <= 1) {
                         td.style.backgroundColor = "#ffeb3b";
                     }
                 }
@@ -598,18 +598,19 @@ function criarDicionarioCadastro (){
 
 
 async function BaixarDadosCadastrados() {
-    function formatarDataExcel(data) {
-        if (!data) return '';
 
-        const [ano, mes, dia] = data.split('-');
-        return `${dia}/${mes}/${ano}`;
+    function converterData(data) {
+      if (!data) return null;
+
+      return new Date(data + "T12:00:00");
     }
 
-    function formatarMoeda(texto) {
-        const valor = texto.replace('.', ',');
-        return valor;
-    }
+    function converterNumero(valor) {
+        if (!valor) return 0;
 
+        // troca vírgula por ponto e transforma em número
+        return parseFloat(valor.toString().replace(',', '.'));
+    }
 
     const dicionarioCartoes = criarDicionarioCadastro();
 
@@ -621,20 +622,27 @@ async function BaixarDadosCadastrados() {
         DadosCadastrados.push([
             dados.empresa,
             dados.destinatario,
-            formatarMoeda(dados.valor),
-            formatarDataExcel(dados.data),
+            converterNumero(dados.valor),
+            converterData(dados.data),
             dados.status ? 'Sim' : 'Nao'
         ]);
     });
 
     const workbook = XLSX.utils.book_new();
-
     const sheet = XLSX.utils.aoa_to_sheet(DadosCadastrados);
 
-    // adiciona a sheet ao arquivo
-    XLSX.utils.book_append_sheet(workbook, sheet, "Dados");
+    // 👉 aplicar formatação nas células
+    Object.keys(sheet).forEach(cell => {
+        if (cell.startsWith('C')) { // coluna Valor
+            sheet[cell].z = 'R$ #,##0.00';
+        }
 
-    // baixa o arquivo
+        if (cell.startsWith('D')) { // coluna Data
+            sheet[cell].z = 'dd/mm/yyyy';
+        }
+    });
+
+    XLSX.utils.book_append_sheet(workbook, sheet, "Dados");
     XLSX.writeFile(workbook, "Dados_Cadastrados.xlsx");
 }
 
