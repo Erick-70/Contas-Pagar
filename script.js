@@ -1059,11 +1059,11 @@ async function carregarProgressoSalvo() {
 
   try {
     // 🔹 Tenta carregar do JSONBin primeiro
-    /*const res = await fetch("https://api.jsonbin.io/v3/b/69db7271856a68218925b784/latest", {
+    const res = await fetch("https://api.jsonbin.io/v3/b/69db7271856a68218925b784/latest", {
       headers: {
         "X-Master-Key": "$2a$10$D1fPJRXoywaWqqf1DhR6zeNjODxL3ASitdO5To2teDxjlJ.MTawV2"
       }
-    });*/
+    });
 
     if (!res.ok) throw new Error("Falha no JSONBin");
 
