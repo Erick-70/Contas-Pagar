@@ -1,5 +1,16 @@
-let barraFiltroPaginaPrincipal = criarBarraDeFiltros('filtrosPrincipal', filtrarPorDescricaoPaginaPrincipal, true);
+var contabilizarPagosCronograma = false;
+function funcaoContabilizarPagosCronograma() {
+  if (contabilizarPagosCronograma){
+    contabilizarPagosCronograma = false;
+    document.getElementById("btnContabilizarPagosCronograma").innerText = "Não Contabilizar os Pagos";
+  } else {
+    contabilizarPagosCronograma = true;
+    document.getElementById("btnContabilizarPagosCronograma").innerText = "Contabilizar os Pagos";
+  }
+  barraFiltroPaginaPrincipal.forcarAtualizacao();
+}
 
+let barraFiltroPaginaPrincipal = criarBarraDeFiltros('filtrosPrincipal', filtrarPorDescricaoPaginaPrincipal, true);
 
 function filtrarPorDescricaoPaginaPrincipal(filtros, conjunto) {
   if (!Array.isArray(filtros)) return;
@@ -43,7 +54,13 @@ function filtrarPorDescricaoPaginaPrincipal(filtros, conjunto) {
       }
     });
 
-    filtrarPorDescricao21Dias(filtros, dadosTratados, conjunto = false)
+    filtrarPorDescricao21Dias(filtros, dadosTratados, conjunto)
+    const dadosAgrupados = agruparPorAnoMes(criarDicionarioCadastro(), filtros, conjunto);
+    let html = renderizarDados(dadosAgrupados);
+    document.getElementById('dadosTratadosDiv').innerHTML = '';
+    document.getElementById('dadosTratadosDiv').appendChild(html);
+    ativarFuncoesTabela(html);
+    ativarToggle(html);
 }
 
 
@@ -105,20 +122,24 @@ function renderizarDados(agrupados) {
 
     for (const ano in agrupados) {
         let totalAno = 0;
+        let totalAnoPago = 0;
+        let totalAnoPendente = 0;
 
         const divAno = document.createElement("div");
         divAno.classList.add("ano");
 
         const tituloAno = document.createElement("h2");
         tituloAno.classList.add("titulo-ano");
+        tituloAno.style.whiteSpace = "pre-line";
 
         const conteudoAno = document.createElement("div");
         conteudoAno.classList.add("conteudo-ano");
 
         for (const mes in agrupados[ano]) {
             let totalMes = 0;
+            let totalMesPago = 0;
+            let totalMesPendente = 0;
 
-            // 🔑 IDs únicos
             const idMes = `mes-${contador}`;
             const idTbody = `tabela-exibicao-${contador}`;
 
@@ -128,6 +149,7 @@ function renderizarDados(agrupados) {
 
             const tituloMes = document.createElement("h3");
             tituloMes.classList.add("titulo-mes");
+            tituloMes.style.whiteSpace = "pre-line";
 
             const tabela = document.createElement("table");
             tabela.classList.add("tabela");
@@ -153,8 +175,17 @@ function renderizarDados(agrupados) {
                 const item = itens[key];
                 const valorNum = Number(item.valor);
 
+                // 🔥 Totais
                 totalMes += valorNum;
                 totalAno += valorNum;
+
+                if (item.status === true) {
+                    totalMesPago += valorNum;
+                    totalAnoPago += valorNum;
+                } else {
+                    totalMesPendente += valorNum;
+                    totalAnoPendente += valorNum;
+                }
 
                 const dataObj = parseDataLocal(item.data);
                 const diaSemana = diasSemana[dataObj.getDay()];
@@ -163,14 +194,15 @@ function renderizarDados(agrupados) {
                 const tr = document.createElement("tr");
                 tr.classList.add("linhaPaginaPrincipal");
 
+                // 🎨 Cores
                 if (item.status === true) {
-                    tr.style.backgroundColor = "#2196F3";
+                    tr.style.backgroundColor = "#2196F3"; // azul = pago
                     tr.style.color = "white";
                 } else if (diffDias <= 0) {
-                    tr.style.backgroundColor = "#f44336";
+                    tr.style.backgroundColor = "#f44336"; // vencido
                     tr.style.color = "white";
                 } else if (diffDias <= 1) {
-                    tr.style.backgroundColor = "#ffeb3b";
+                    tr.style.backgroundColor = "#ffeb3b"; // vence hoje/amanhã
                 }
 
                 tr.innerHTML = `
@@ -184,7 +216,8 @@ function renderizarDados(agrupados) {
                 tbody.appendChild(tr);
             }
 
-            tituloMes.innerText = `${mes} - Total ${formatarMoeda(totalMes)}`;
+            // 📊 Título do mês
+            tituloMes.innerText = `${mes} - Total Geral: ${formatarMoeda(totalMes)} - Total Pago: ${formatarMoeda(totalMesPago)} - Total Pendente: ${formatarMoeda(totalMesPendente)}`;
 
             tabela.style.display = "none";
 
@@ -192,10 +225,11 @@ function renderizarDados(agrupados) {
             divMes.appendChild(tabela);
             conteudoAno.appendChild(divMes);
 
-            contador++; // 👈 MUITO IMPORTANTE
+            contador++;
         }
 
-        tituloAno.innerText = `${ano} - Total ${formatarMoeda(totalAno)}`;
+        // 📊 Título do ano
+        tituloAno.innerText = `${ano} - Total Geral: ${formatarMoeda(totalAno)} - Total Pago: ${formatarMoeda(totalAnoPago)} - Total Pendente: ${formatarMoeda(totalAnoPendente)}`;
 
         divAno.appendChild(tituloAno);
         divAno.appendChild(conteudoAno);
@@ -246,20 +280,58 @@ function ativarToggle(container) {
 }
 
 
-function agruparPorAnoMes(dados) {
+function agruparPorAnoMes(dados, filtros = [], conjunto = false) {
+  function formatarDataBR(dataStr) {
+        const [ano, mes, dia] = dataStr.split("-");
+        return `${dia}/${mes}/${ano}`;
+    }
+
     const meses = [
         "Janeiro", "Fevereiro", "Março", "Abril",
         "Maio", "Junho", "Julho", "Agosto",
         "Setembro", "Outubro", "Novembro", "Dezembro"
     ];
 
-    // função segura pra criar data LOCAL
     function parseDataLocal(dataStr) {
         const [ano, mes, dia] = dataStr.split("-").map(Number);
-        return new Date(ano, mes - 1, dia); // 👈 aqui resolve o bug
+        return new Date(ano, mes - 1, dia);
     }
 
-    const listaOrdenada = Object.values(dados).sort((a, b) => {
+    // 🔎 mesma lógica de filtro
+    const corresponde = (item, txt) => {
+        txt = txt.toLowerCase();
+
+        const empresa = (item.empresa || "").toLowerCase();
+        const destinatario = (item.destinatario || "").toLowerCase();
+        const valor = String(item.valor || "").toLowerCase();
+        const data = formatarDataBR(item.data) || "";
+
+        const dataObj = parseDataLocal(item.data);
+        const diasSemana = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+        const diaSemana = diasSemana[dataObj.getDay()];
+
+        return (
+            empresa.includes(txt) ||
+            destinatario.includes(txt) ||
+            valor.includes(txt) ||
+            data.includes(txt) ||
+            diaSemana.includes(txt)
+        );
+    };
+
+    // 🔥 FILTRO APLICADO AQUI
+    const listaFiltrada = Object.values(dados).filter(item => {
+        if (!Array.isArray(filtros) || filtros.length === 0) return true;
+
+        if (conjunto) {
+            return filtros.every(f => corresponde(item, f));
+        } else {
+            return filtros.some(f => corresponde(item, f));
+        }
+    });
+
+    // 🔄 ordena após filtrar
+    const listaOrdenada = listaFiltrada.sort((a, b) => {
         return parseDataLocal(a.data) - parseDataLocal(b.data);
     });
 
@@ -270,13 +342,8 @@ function agruparPorAnoMes(dados) {
         const ano = String(data.getFullYear());
         const mes = meses[data.getMonth()];
 
-        if (!resultado[ano]) {
-            resultado[ano] = {};
-        }
-
-        if (!resultado[ano][mes]) {
-            resultado[ano][mes] = {};
-        }
+        if (!resultado[ano]) resultado[ano] = {};
+        if (!resultado[ano][mes]) resultado[ano][mes] = {};
 
         const tamanhoMes = Object.keys(resultado[ano][mes]).length;
         resultado[ano][mes][tamanhoMes] = item;
@@ -410,142 +477,147 @@ function filtrarPorDescricao21Dias(filtros, dados, conjunto = false) {
 
 function renderizarCronograma21Dias(dados) {
 
-    function formatarDataBRCompleta(dataStr) {
-        const [ano, mes, dia] = dataStr.split("-");
-        return `${dia}/${mes}/${ano}`;
-    }
+  function formatarDataBRCompleta(dataStr) {
+    const [ano, mes, dia] = dataStr.split("-");
+    return `${dia}/${mes}/${ano}`;
+  }
 
-    function parseDataLocal(dataStr) {
-        const [ano, mes, dia] = dataStr.split("-").map(Number);
-        return new Date(ano, mes - 1, dia);
-    }
+  function parseDataLocal(dataStr) {
+    const [ano, mes, dia] = dataStr.split("-").map(Number);
+    return new Date(ano, mes - 1, dia);
+  }
 
-    function diferencaDias(data) {
-        const hoje = new Date();
-        hoje.setHours(0,0,0,0);
-
-        const alvo = new Date(data);
-        alvo.setHours(0,0,0,0);
-
-        return Math.floor((alvo - hoje) / (1000 * 60 * 60 * 24));
-    }
-
-    function formatarMoeda(valor) {
-        return Number(valor).toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL"
-        });
-    }
-
-    // 🔥 HOJE
+  function diferencaDias(data) {
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
 
-    function ehHoje(dataStr) {
-        const [ano, mes, dia] = dataStr.split("-").map(Number);
-        const data = new Date(ano, mes - 1, dia);
-        return data.getTime() === hoje.getTime();
-    }
+    const alvo = new Date(data);
+    alvo.setHours(0,0,0,0);
 
-    document.getElementById("Cronograma").innerHTML = "";
-    const container = document.getElementById("Cronograma");
+    return Math.floor((alvo - hoje) / (1000 * 60 * 60 * 24));
+  }
 
-    const tabela = document.createElement("table");
-    tabela.border = "1";
-    tabela.style.width = "100%";
-    tabela.style.marginTop = "20px";
-    tabela.style.textAlign = "center";
-
-    const diasHeader = ["Sáb","Dom","Seg","Ter","Qua","Qui","Sex"];
-
-    // 🔵 HEADER (uma vez só)
-    const trHeader = document.createElement("tr");
-    diasHeader.forEach(dia => {
-        const th = document.createElement("th");
-        th.innerText = dia;
-        th.style.backgroundColor = "#1976d2";
-        th.style.color = "white";
-        trHeader.appendChild(th);
+  function formatarMoeda(valor) {
+    return Number(valor).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL"
     });
-    tabela.appendChild(trHeader);
+  }
 
-    // 🔁 semanas (3 blocos)
-    for (let inicio = 0; inicio <= 14; inicio += 7) {
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
 
-        // 🟢 LINHA DATA + TOTAL
-        const trDatas = document.createElement("tr");
+  function ehHoje(dataStr) {
+    const [ano, mes, dia] = dataStr.split("-").map(Number);
+    const data = new Date(ano, mes - 1, dia);
+    return data.getTime() === hoje.getTime();
+  }
 
-        for (let i = 0; i < 7; i++) {
-            const diaObj = dados[inicio + i];
-            const td = document.createElement("td");
+  document.getElementById("Cronograma").innerHTML = "";
+  const container = document.getElementById("Cronograma");
 
-            // soma do dia
-            const totalDia = diaObj.itens.reduce((acc, item) => {
-                return acc + Number(item.valor);
-            }, 0);
+  const tabela = document.createElement("table");
+  tabela.border = "1";
+  tabela.style.width = "100%";
+  tabela.style.marginTop = "20px";
+  tabela.style.textAlign = "center";
 
-            td.innerHTML = `
-                <strong>${formatarDataBRCompleta(diaObj.data)}</strong><br>
-                Total: ${formatarMoeda(totalDia)}
-            `;
+  const diasHeader = ["Sáb","Dom","Seg","Ter","Qua","Qui","Sex"];
 
-            td.style.backgroundColor = "#0a7f00";
-            td.style.color = "white";
+  const trHeader = document.createElement("tr");
+  diasHeader.forEach(dia => {
+    const th = document.createElement("th");
+    th.innerText = dia;
+    th.style.backgroundColor = "#1976d2";
+    th.style.color = "white";
+    trHeader.appendChild(th);
+  });
+  tabela.appendChild(trHeader);
 
-            // ⭐ destaque SOMENTE do dia atual
-            if (ehHoje(diaObj.data)) {
-                td.style.color = "#ffeb3b";
-                td.style.fontWeight = "bold";
-            }
+  // 🔁 semanas
+  for (let inicio = 0; inicio <= 14; inicio += 7) {
 
-            trDatas.appendChild(td);
+    let totalSemana = 0;
+
+    const trDatas = document.createElement("tr");
+
+    for (let i = 0; i < 7; i++) {
+      const diaObj = dados[inicio + i];
+      const td = document.createElement("td");
+
+      // 🔥 soma do dia com regra aplicada
+      const totalDia = diaObj.itens.reduce((acc, item) => {
+        const valor = Number(item.valor);
+
+        if (contabilizarPagosCronograma && item.status === true) {
+          return acc; // ignora pagos
         }
 
-        tabela.appendChild(trDatas);
+        return acc + valor;
+      }, 0);
 
-        let maxLinhas = 0;
-        for (let i = 0; i < 7; i++) {
-            maxLinhas = Math.max(maxLinhas, dados[inicio + i].itens.length);
-        }
+      totalSemana += totalDia;
 
-        for (let linha = 0; linha < maxLinhas; linha++) {
-            const tr = document.createElement("tr");
+      td.innerHTML = `
+        <strong>${formatarDataBRCompleta(diaObj.data)}</strong><br>
+        Hoje: ${formatarMoeda(totalDia)}<br>
+        Total: ${formatarMoeda(totalSemana)}
+      `;
 
-            for (let i = 0; i < 7; i++) {
-                const diaObj = dados[inicio + i];
-                const item = diaObj.itens[linha];
+      td.style.backgroundColor = "#0a7f00";
+      td.style.color = "white";
 
-                const td = document.createElement("td");
+      if (ehHoje(diaObj.data)) {
+        td.style.color = "#ffeb3b";
+        td.style.fontWeight = "bold";
+      }
 
-                if (item) {
-                    // converte dd/mm/yyyy → Date
-                    const dataISO = item.data.split("/").reverse().join("-");
-                    const dataObj = parseDataLocal(dataISO);
-                    const diffDias = diferencaDias(dataObj);
-
-                    td.innerText = `${item.empresa} - ${item.destinatario} - ${formatarMoeda(item.valor)}`;
-                    td.style.textAlign = "left";
-
-                    // CORES
-                    if (item.status === true) {
-                        td.style.backgroundColor = "#2196F3";
-                        td.style.color = "white";
-                    } else if (diffDias <= 0) {
-                        td.style.backgroundColor = "#f44336";
-                        td.style.color = "white";
-                    } else if (diffDias <= 1) {
-                        td.style.backgroundColor = "#ffeb3b";
-                    }
-                }
-
-                tr.appendChild(td);
-            }
-
-            tabela.appendChild(tr);
-        }
+      trDatas.appendChild(td);
     }
 
-    container.appendChild(tabela);
+    tabela.appendChild(trDatas);
+
+    let maxLinhas = 0;
+    for (let i = 0; i < 7; i++) {
+      maxLinhas = Math.max(maxLinhas, dados[inicio + i].itens.length);
+    }
+
+    for (let linha = 0; linha < maxLinhas; linha++) {
+      const tr = document.createElement("tr");
+
+      for (let i = 0; i < 7; i++) {
+        const diaObj = dados[inicio + i];
+        const item = diaObj.itens[linha];
+
+        const td = document.createElement("td");
+
+        if (item) {
+          const dataISO = item.data.split("/").reverse().join("-");
+          const dataObj = parseDataLocal(dataISO);
+          const diffDias = diferencaDias(dataObj);
+
+          td.innerText = `${item.empresa} - ${item.destinatario} - ${formatarMoeda(item.valor)}`;
+          td.style.textAlign = "left";
+
+          if (item.status === true) {
+            td.style.backgroundColor = "#2196F3";
+            td.style.color = "white";
+          } else if (diffDias <= 0) {
+            td.style.backgroundColor = "#f44336";
+            td.style.color = "white";
+          } else if (diffDias <= 1) {
+            td.style.backgroundColor = "#ffeb3b";
+          }
+        }
+
+        tr.appendChild(td);
+      }
+
+      tabela.appendChild(tr);
+    }
+  }
+
+  container.appendChild(tabela);
 }
 
 let hoje = new Date(); let carregou = false;
