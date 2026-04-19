@@ -539,33 +539,68 @@ function renderizarCronograma21Dias(dados) {
 
     let totalSemana = 0;
 
-    const trDatas = document.createElement("tr");
+    // 📅 datas da semana
+    const dataInicio = formatarDataBRCompleta(dados[inicio].data);
+    const dataFim = formatarDataBRCompleta(dados[inicio + 6].data);
 
+    // 🔥 calcula total ANTES de renderizar
     for (let i = 0; i < 7; i++) {
       const diaObj = dados[inicio + i];
-      const td = document.createElement("td");
 
-      // 🔥 soma do dia com regra aplicada
       const totalDia = diaObj.itens.reduce((acc, item) => {
         const valor = Number(item.valor);
 
         if (contabilizarPagosCronograma && item.status === true) {
-          return acc; // ignora pagos
+          return acc;
         }
 
         return acc + valor;
       }, 0);
 
       totalSemana += totalDia;
+    }
+
+    // 🔥 LINHA TOTAL DA SEMANA (AGORA VEM PRIMEIRO)
+    const trTotalSemana = document.createElement("tr");
+    const tdTotal = document.createElement("td");
+
+    tdTotal.colSpan = 7;
+    tdTotal.style.backgroundColor = "#333";
+    tdTotal.style.color = "white";
+    tdTotal.style.fontWeight = "bold";
+    tdTotal.style.textAlign = "center";
+
+    tdTotal.innerText = `Valor Total da Semana (${dataInicio} até ${dataFim}): ${formatarMoeda(totalSemana)}`;
+
+    trTotalSemana.appendChild(tdTotal);
+    tabela.appendChild(trTotalSemana);
+
+    // 🔵 LINHA DAS DATAS
+    const trDatas = document.createElement("tr");
+
+    for (let i = 0; i < 7; i++) {
+      const diaObj = dados[inicio + i];
+      const td = document.createElement("td");
+
+      const totalDia = diaObj.itens.reduce((acc, item) => {
+        const valor = Number(item.valor);
+
+        if (contabilizarPagosCronograma && item.status === true) {
+          return acc;
+        }
+
+        return acc + valor;
+      }, 0);
 
       td.innerHTML = `
         <strong>${formatarDataBRCompleta(diaObj.data)}</strong><br>
-        Hoje: ${formatarMoeda(totalDia)}<br>
-        Total: ${formatarMoeda(totalSemana)}
+        Total do Dia: ${formatarMoeda(totalDia)}
       `;
 
       td.style.backgroundColor = "#0a7f00";
       td.style.color = "white";
+      //td.style.fontWeight = "bold";
+      td.style.textAlign = "center";
 
       if (ehHoje(diaObj.data)) {
         td.style.color = "#ffeb3b";
@@ -577,6 +612,7 @@ function renderizarCronograma21Dias(dados) {
 
     tabela.appendChild(trDatas);
 
+    // 🔢 ITENS
     let maxLinhas = 0;
     for (let i = 0; i < 7; i++) {
       maxLinhas = Math.max(maxLinhas, dados[inicio + i].itens.length);
@@ -1023,11 +1059,11 @@ async function carregarProgressoSalvo() {
 
   try {
     // 🔹 Tenta carregar do JSONBin primeiro
-    const res = await fetch("https://api.jsonbin.io/v3/b/69db7271856a68218925b784/latest", {
+    /*const res = await fetch("https://api.jsonbin.io/v3/b/69db7271856a68218925b784/latest", {
       headers: {
         "X-Master-Key": "$2a$10$D1fPJRXoywaWqqf1DhR6zeNjODxL3ASitdO5To2teDxjlJ.MTawV2"
       }
-    });
+    });*/
 
     if (!res.ok) throw new Error("Falha no JSONBin");
 
